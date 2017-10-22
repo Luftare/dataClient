@@ -1,0 +1,87 @@
+<script src="comms.js"></script>
+<canvas style="background-color: lightgreen"></canvas>
+<h3>My id: <span id="selfId"></span>, connected with: <span id="otherId"></span></h3>
+<ul></ul>
+<script>
+const canvas = document.querySelector("canvas");
+const ctx = canvas.getContext("2d");
+let keysdown = {};
+window.addEventListener("keydown", e => {keysdown[e.key] = true});
+window.addEventListener("keyup", e => {keysdown[e.key] = false});
+let connected = false;
+let speed = 1;
+let other = {
+  x: 0,
+  y: 50
+}
+var self = {
+  x: 0,
+  y: 100,
+}
+const comms = createClient({});
+comms.connect()
+
+comms.on("clientsUpdate", e => {
+  document.querySelector("ul").innerHTML = "";
+  const arr = e.filter(c => c.id !== selfId);
+  const html = arr.map(c => {
+    const el = document.createElement("li");
+    el.onclick = e => comms.connectDc(c.id);
+    el.innerHTML = "<a href='#'>client: " + c.id + "</a>";
+    return el;
+  });
+  html.forEach(e => document.querySelector("ul").appendChild(e))
+})
+
+comms.on("clientState", e => {
+  other.x = e.x;
+  other.y = e.y;
+})
+  
+comms.on("clientId", e => {
+  document.getElementById("selfId").innerHTML = e;
+  selfId = e;
+})
+  
+comms.on("wsOpen", e => {
+  console.log("CONNECT#ED! (ws)")
+})  
+  
+comms.on("wsClosed", e => {
+  console.log("disconnected (ws)")
+})  
+  
+comms.on("dcOpen", e => {
+  document.getElementById("otherId").innerHTML = e.otherId;
+  connected = true;
+})
+  
+comms.on("dcClosed", e => {
+  console.log("DISCONNECTED! (dc)")
+  connected = false;
+})  
+
+function invite(id) {
+  comms.connectDc(id);
+}
+  
+function update() {
+  if(keysdown.a) self.x -= speed;
+  if(keysdown.d) self.x += speed;
+  if(keysdown.w) self.y -= speed;
+  if(keysdown.s) self.y += speed;
+  if(connected) comms.streamEvent("clientState", {id: selfId, x: self.x, y: self.y})
+}
+
+function render() {
+  canvas.width = canvas.width;
+  ctx.fillRect(self.x, self.y, 10, 10);
+  ctx.fillRect(other.x, other.y, 10, 10);
+}
+  
+setInterval(() => {
+  update();
+  render();
+}, 16);
+  
+</script>
